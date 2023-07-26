@@ -60,7 +60,7 @@ if __name__=="__main__":
     with torch.no_grad():
         outputs = model(**inputs)
         target_sizes=[(image.shape[0],image.shape[1])]
-        raw_results = processor.post_process_object_detection(outputs, threshold=0.1,target_sizes=target_sizes)[0]
+        raw_results = processor.post_process_object_detection(outputs, threshold=0.15,target_sizes=target_sizes)[0]
     results={
         'scores':raw_results["scores"].tolist(),
         'labels':raw_results["labels"].tolist(),

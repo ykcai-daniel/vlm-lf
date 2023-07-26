@@ -27,13 +27,10 @@ def process_video(video_path:str,text_queries,interval=6,result_dir=None):
 #srun --gres=gpu:1 -w gpu30 --pty /bin/bash
 if __name__=='__main__':
     video_name='./data/hong_kong_airport_3.mp4'
-    # text_queries=[
-    #     'white backpack',
-    #     'black backpack',
-    #     'white suitcase',
-    #     'black suitcase',
-    # ]
     text_queries=[
-        'checkered tote',
+        'tote bag'
     ]
+    # text_queries=[
+    #     'checkered tote',
+    # ]
     process_video(video_name,text_queries,result_dir='hong_kong_airport_3')
