@@ -1,8 +1,8 @@
 import torch
 import cv2
+import json
 from transformers import CLIPProcessor, CLIPModel
 #https://huggingface.co/docs/transformers/main/model_doc/owlvit
-
 class Clip:
     def __init__(self) -> None:
         self.model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -29,11 +29,51 @@ class Clip:
         with torch.no_grad():
             inputs=self.processor.tokenizer(text, padding=True, truncation=True, max_length=64, return_tensors='pt')
             return self.model.get_text_features(**inputs)
+        
+
+
+def process_video_clip(model:Clip,video_path:str,text_queries,interval=6,max_frame=None):
+    result={s:[] for s in text_queries}
+    video=cv2.VideoCapture(video_path)
+    frame_count=0
+    print(f"Number of frames: {int(video.get(cv2.CAP_PROP_FRAME_COUNT))} Processing interval: {interval}")
+    while video.isOpened():
+        ret, frame = video.read()
+        if not ret:
+            print("Ret is false!")
+            break
+        if max_frame is not None:
+            if frame_count>max_frame:
+                print(f"Max frame {max_frame} reached.")
+                video.release()
+                return result
+        frame_count=frame_count+1
+        if frame_count%interval!=0:
+            continue
+        logits=model.get_logits(frame,text_queries)
+        print(f"Results of frame {frame_count}: {logits}")
+        for index in range(len(text_queries)):
+            result[text_queries[index]].append(logits[0][index].item())
+    video.release()
+    return result
+
 
 if __name__=='__main__':
     #max precision given different threshold criteria
+    video_name='./data/hong_kong_airport_3.mp4'
+    text_queries=[
+        'white backpack','white suitcase','blue backpack','blue suitcase'
+    ]
+    clip_queries=[f'an image with {t}' for t in text_queries]
+    clip_queries.append('an image of crows at an airport')
+    clip_queries.append('an image of a steak')
+    # text_queries=[
+    #     'checkered tote',
+    # ]
+    # use owl-vlm
+    #process_video_owl(video_name,text_queries,result_dir='hong_kong_airport_3')
+    #use clio
     clip=Clip()
-    img=cv2.imread(f'./data/astronaut.jpg')
-    texts=['woman','astronaut','airplane','computer','handbag']
-    logits=clip.get_logits(img,texts)
-    print(logits)
+    res=process_video_clip(clip,video_name,clip_queries,max_frame=450)
+    with open('hong_kong_airport_3.json','w') as f:
+        json.dump(res,f)
