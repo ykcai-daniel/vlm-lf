@@ -22,7 +22,7 @@ class FrameProcessor:
             #out is OwlViTObjectDetectionOutput, need to move back to cpu
             outputs.logits=outputs.logits.to('cpu') 
             outputs.pred_boxes=outputs.pred_boxes.to('cpu')
-            raw_results = self.processor.post_process_object_detection(outputs, threshold=0.1,target_sizes=target_sizes)
+            raw_results = self.processor.post_process_object_detection(outputs, threshold=0.05,target_sizes=target_sizes)
             #raw result length=1 since only one frame
             assert(len(raw_results)==1)
         results={
@@ -63,7 +63,8 @@ def visualize_results_lang(image,result,classes):
         p1_x,p1_y,p2_x,p2_y=int(point[0]),int(point[1]),int(point[2]),int(point[3])
         #print(f"P1： ({p1_x},{p1_y}) P2: ({p2_x},{p2_y})")
         cv2.rectangle(img=image,pt1=(p1_x,p1_y),pt2=(p2_x,p2_y),color=colors[label],thickness=3)
-        cv2.putText(image, f"{label+1}",(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
+        score_str="{:.2f}".format(result['scores'][index])
+        cv2.putText(image, f"{label+1} ({score_str})",(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
     return image
 
 def visualize_result_image(image,result,caption=None):
