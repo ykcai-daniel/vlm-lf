@@ -1,5 +1,4 @@
 from transformers import pipeline
-import skimage
 import numpy as np
 from PIL import Image
 from PIL import ImageDraw
