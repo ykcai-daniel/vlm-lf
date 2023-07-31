@@ -2,6 +2,7 @@ import cv2
 import os
 import time
 import json
+import numpy as np
 from frame_processor import vlm_processor,visualize_results_lang,visualize_result_image
 import torch
 def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=None,max_frame=None,result_video=None):
@@ -9,9 +10,9 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
     device='cpu'
     all_frame_results=[]
     if torch.cuda.is_available():
-        print("Using cuda")
         device='cuda'
-        vlm_processor.model.to(device)
+    vlm_processor.model.to(device)
+    print("Using "+device)
     video=cv2.VideoCapture(video_path)
     if result_video is not None:
         #codec must be avc1 (h.264) to allowing playing in <video> element of html
@@ -35,6 +36,8 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
         if frame_count%interval==0:
             start=time.perf_counter()
             result=vlm_processor.process_image(frame,text_queries,device)
+            result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
+            result = remove_zero_boxes(result)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -57,9 +60,9 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
     device='cpu'
     all_frame_results=[]
     if torch.cuda.is_available():
-        print("Using cuda")
         device='cuda'
     vlm_processor.model.to(device)
+    print ('Useing '+ device)
     image_queries=[cv2.imread(name) for name in image_queries_names]
     video=cv2.VideoCapture(video_path)
     if result_dir is not None:
@@ -82,6 +85,8 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
         if frame_count%interval==0:
             start=time.perf_counter()
             result=vlm_processor.image_query(frame,image_queries,device)
+            result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
+            result = remove_zero_boxes(result)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -121,16 +126,59 @@ def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,
     else:
         print("Invalid run_type: must be image or lang ")
 
+def non_max_suppression_fast(boxes, overlapThresh):
+    if len(boxes) == 0:
+        return []
+    if boxes.dtype.kind == "i":
+        boxes = boxes.astype("float")
+    pick = []
+    x1 = boxes[:,0]
+    y1 = boxes[:,1]
+    x2 = boxes[:,2]
+    y2 = boxes[:,3]
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)
+    idxs = np.argsort(y2)
+    while len(idxs) > 0:
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        overlap = (w * h) / area[idxs[:last]]
+        to_zero = np.where(overlap > overlapThresh)[0]
+        x1[idxs[to_zero]] = 0
+        y1[idxs[to_zero]] = 0
+        x2[idxs[to_zero]] = 0
+        y2[idxs[to_zero]] = 0
+        idxs = np.delete(idxs, last)
+    return boxes.astype("int").tolist()
+
+def remove_zero_boxes(result):
+    new_result = {'boxes': [], 'scores': [], 'labels': []}
+    for box, score, label in zip(result['boxes'], result['scores'], result['labels']):
+        if box != [0, 0, 0, 0]:
+            new_result['boxes'].append(box)
+            new_result['scores'].append(score)
+            new_result['labels'].append(label)
+    return new_result
     
 #If you are using CUHK CSE slurm cluster
 #export SLURM_CONF=/opt1/slurm/gpu-slurm.conf 
 #srun --gres=gpu:1 -w gpu39 --pty /bin/bash
 if __name__=='__main__':
-    video_name='data/hong_kong_airport_demo_data.mp4'
+    video_name='data/IMG_1752.mp4'
     text_queries=[
-        'white backpack','white suitcase','black backpack','black suitcase','black and white striped backpack','tote bag'
+    #    'white backpack','white suitcase','black backpack','black suitcase','black and white striped backpack','tote bag', 'person in black', 'cyan suitcase'
+        'suitcase', 'bag'
     ]
-    image_queries=['test_images/pink_short_luggage.jpg']
+    image_queries=[
+        'test_images/1752_woman.jpg'
+    #    'test_images/6762_man_black.jpg', 'test_images/6762_man_blue.jpg', 'test_images/6762_woman_black.jpg', 'test_images/6762_woman_white.jpg'
+    ]
     #run with language
     run_video_to_video(video_name,text_queries,'lang')
     #or run with imange 
