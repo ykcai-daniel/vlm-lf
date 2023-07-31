@@ -3,6 +3,9 @@ import os
 import time
 import json
 import numpy as np
+import datetime
+import argparse
+from test_cases import test_cases
 from frame_processor import vlm_processor,visualize_results_lang,visualize_result_image
 import torch
 def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=None,max_frame=None,result_video=None):
@@ -72,7 +75,6 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         #fps is 5
         video_writer=cv2.VideoWriter(result_video,fourcc,round(30.0/interval),(int(video.get(3)),int(video.get(4))))
-        print(video_writer)
     frame_count=0
     print(f"Number of frames: {int(video.get(cv2.CAP_PROP_FRAME_COUNT))} Processing interval: {interval}")
     while video.isOpened():
@@ -105,20 +107,27 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
     return all_frame_results
 
 def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,max_frame=None):
+    os.makedirs('results',exist_ok=True)
     video_raw_name=video_name.split('/')[-1]
     str_max_frame=''
     if max_frame is not None:
         str_max_frame=f'_frame_{max_frame}'
+    #append time stamp into name to avoid duplication
+    current_time = datetime.datetime.now()
+    formatted_time = current_time.strftime("%Y%m%d%H%M")
+    result_video_name=f'./results/{video_raw_name}{str_max_frame}_{formatted_time}_{run_type}.mp4'
+    result_json_name=f'./results/{video_raw_name}{str_max_frame}_{formatted_time}_{run_type}.json'
+    print(f'Result Video Path: {result_video_name}')
     if run_type=='image':
-        result=process_video_owl_image(video_name,queries,interval,result_dir=None,max_frame=max_frame,result_video=f'./results/{video_raw_name}_{str_max_frame}_img.mp4')
-        with open(f'./results/{video_raw_name}{str_max_frame}_img.json','w') as f:
+        result=process_video_owl_image(video_name,queries,interval,result_dir=None,max_frame=max_frame,result_video=result_video_name)
+        with open(result_json_name,'w') as f:
             json.dump({
                 'query':queries,
                 'result':result,
             },f)
     elif run_type=='lang':
-        result=process_video_owl_lang(video_name,queries,interval,result_dir=None,max_frame=max_frame,result_video=f'./results/{video_raw_name}_{str_max_frame}_lang.mp4')
-        with open(f'./results/{video_raw_name}{str_max_frame}_lang.json','w') as f:
+        result=process_video_owl_lang(video_name,queries,interval,result_dir=None,max_frame=max_frame,result_video=result_video_name)
+        with open(result_video_name,'w') as f:
             json.dump({
                 'query':queries,
                 'result':result,
@@ -158,6 +167,9 @@ def non_max_suppression_fast(boxes, overlapThresh):
     return boxes.astype("int").tolist()
 
 def remove_zero_boxes(result):
+    #image query
+    if 'boxes' not in result or 'labels' not in result:
+        return result
     new_result = {'boxes': [], 'scores': [], 'labels': []}
     for box, score, label in zip(result['boxes'], result['scores'], result['labels']):
         if box != [0, 0, 0, 0]:
@@ -170,18 +182,15 @@ def remove_zero_boxes(result):
 #export SLURM_CONF=/opt1/slurm/gpu-slurm.conf 
 #srun --gres=gpu:1 -w gpu39 --pty /bin/bash
 if __name__=='__main__':
-    video_name='data/IMG_1752.mp4'
-    text_queries=[
-    #    'white backpack','white suitcase','black backpack','black suitcase','black and white striped backpack','tote bag', 'person in black', 'cyan suitcase'
-        'suitcase', 'bag'
-    ]
-    image_queries=[
-        'test_images/1752_woman.jpg'
-    #    'test_images/6762_man_black.jpg', 'test_images/6762_man_blue.jpg', 'test_images/6762_woman_black.jpg', 'test_images/6762_woman_white.jpg'
-    ]
-    #run with language
-    run_video_to_video(video_name,text_queries,'lang')
-    #or run with imange 
-    #run_video_to_video(video_name,image_queries,'image')
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--video_name',type=str)
+    parser.add_argument('--query_index',type=int)
+    parser.add_argument('--max_frame',type=int,default=None)
+    args=parser.parse_args()
+    video_name=args.video_name
+    query=test_cases[args.query_index]['object']
+    query_type=test_cases[args.query_index]['type']
+    run_video_to_video(video_name,query,query_type)
+
 
     

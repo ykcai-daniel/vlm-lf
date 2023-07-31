@@ -7,8 +7,19 @@ ffmpeg -i hong_kong_airport.mp4 -c copy -map 0 -segment_time 00:03:00 -f segment
 We have chosen the part between 8:00 to 9:40 as our test data, you can either generate it with ffmpeg, or download
 from [google drive link](https://drive.google.com/file/d/1NW670p5VUBKKNl2oZfA80VCNNgit7kcY/view?usp=drive_link)
 
-To convert a video into frame with certain fps with the following command
+(Optional) To convert a video into frame with certain fps with the following command
 ```
 ffmpeg -i hong_kong_airport_3.mp4 -vf fps=5 img%04d.jpg
 ```
+## Run Testcases
+```
+python lf.py --video_name {name} --query_index {index} --query_type{'lang'|'image'}
+```
+Here, {name} is the relative path from content root to the video; {index} is the index of the testcase in `test_cases.py`;
+For example, to run the first test case:
+```
+python lf.py --video_name data/hong_kong_airport_demo_data.mp4 --query_index 0
+```
+The program will load the first testcase which uses the text query `['white backpack','white suitcase','black backpack','black suitcase']`
+
 
