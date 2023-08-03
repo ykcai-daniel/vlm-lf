@@ -3,6 +3,22 @@
 #Resample the video at 5fps, frame index starts from zero. The intervals are an array of tuple of (start,end)
 test_cases=[
     {
+        'object':['white backpack','white suitcase','black backpack','black suitcase'],
+        'type':'lang',
+    },
+    {
+        'object':['test_images/pink_short_luggage.jpg'],
+        'type':'image',
+    },
+    {
+        'object':['test_images/rainbow_shirt_white_shoes_girl.jpg'],
+        'type':'image',
+    },
+    {
+        'object':'black and white striped backpack',
+        'intervals': [('01:10', '01:15')],
+    },
+    {
         'object':'black and white striped backpack',
         'intervals': [('01:10', '01:15')],
     },

@@ -184,7 +184,6 @@ def remove_zero_boxes(result, run_type):
                 new_result['scores'].append(score)
     else:
         print("Invalid run_type: must be image or lang ")
-                
     return new_result
 
     
