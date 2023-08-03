@@ -7,6 +7,8 @@ import os
 import argparse
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 import torch
+def inverse_sigmoid(scores):
+    return torch.log(scores/(torch.ones_like(scores,dtype=torch.float)-scores))
 
 class FrameProcessor:
     def __init__(self) -> None:
@@ -28,6 +30,7 @@ class FrameProcessor:
         results={
             'scores':raw_results[0]["scores"].tolist(),
             'labels':raw_results[0]["labels"].tolist(),
+            'logits':inverse_sigmoid(raw_results[0]["scores"]).tolist(),
             'boxes':raw_results[0]["boxes"].tolist()
         }
         return results
@@ -48,7 +51,8 @@ class FrameProcessor:
         results={
             'scores':raw_results[0]["scores"].tolist(),
             #'labels':raw_results[0]["labels"].tolist(),
-            'boxes':raw_results[0]["boxes"].tolist()
+            'boxes':raw_results[0]["boxes"].tolist(),
+            'logits':inverse_sigmoid(raw_results[0]["scores"]).tolist(),
         }
         return results
 

@@ -23,7 +23,6 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
         #in backend, consider converting video with ffmpeg
         #https://stackoverflow.com/questions/59290569/opencv-video-writer-unable-to-find-codec-or-avc1
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        #fps is 5
         video_writer=cv2.VideoWriter(result_video,fourcc,round(30.0/interval),(int(video.get(3)),int(video.get(4))))
     if result_dir is not None:
         os.makedirs(f'./results/{result_dir}',exist_ok=True)
@@ -39,8 +38,8 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
         if frame_count%interval==0:
             start=time.perf_counter()
             result=vlm_processor.process_image(frame,text_queries,device)
+            result = remove_zero_boxes(result)
             result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
-            result = remove_zero_boxes(result, run_type)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -73,7 +72,6 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
     if result_video is not None:
         #codec must be avc1 (h.264) to allowing playing in <video> element of html
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        #fps is 5
         video_writer=cv2.VideoWriter(result_video,fourcc,round(30.0/interval),(int(video.get(3)),int(video.get(4))))
     frame_count=0
     print(f"Number of frames: {int(video.get(cv2.CAP_PROP_FRAME_COUNT))} Processing interval: {interval}")
@@ -87,8 +85,8 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
         if frame_count%interval==0:
             start=time.perf_counter()
             result=vlm_processor.image_query(frame,image_queries,device)
+            result = remove_zero_boxes(result)
             result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
-            result = remove_zero_boxes(result, run_type)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -121,13 +119,15 @@ def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,
     if run_type=='image':
         result=process_video_owl_image(video_name,queries,interval,result_dir=None,max_frame=max_frame,result_video=result_video_name)
         with open(result_json_name,'w') as f:
+            print(f"Result Json: {result_json_name}")
             json.dump({
                 'query':queries,
                 'result':result,
             },f)
     elif run_type=='lang':
         result=process_video_owl_lang(video_name,queries,interval,result_dir=None,max_frame=max_frame,result_video=result_video_name)
-        with open(result_video_name,'w') as f:
+        with open(result_json_name,'w') as f:
+            print(f"Result Json: {result_json_name}")
             json.dump({
                 'query':queries,
                 'result':result,
@@ -166,24 +166,14 @@ def non_max_suppression_fast(boxes, overlapThresh):
         idxs = np.delete(idxs, last)
     return boxes.astype("int").tolist()
 
-def remove_zero_boxes(result, run_type):
+def remove_zero_boxes(result):
     if 'boxes' not in result:
         return result
-    if run_type=='lang':
-        new_result = {'boxes': [], 'scores': [], 'labels': []}
-        for box, score, label in zip(result['boxes'], result['scores'], result['labels']):
-            if box != [0, 0, 0, 0]:
-                new_result['boxes'].append(box)
-                new_result['scores'].append(score)
-                new_result['labels'].append(label)
-    elif run_type=='image':
-        new_result = {'boxes': [], 'scores': [], 'labels': []}
-        for box, score in zip(result['boxes'], result['scores']):
-            if box != [0, 0, 0, 0]:
-                new_result['boxes'].append(box)
-                new_result['scores'].append(score)
-    else:
-        print("Invalid run_type: must be image or lang ")
+    new_result={k:[] for k in result}
+    for index,box in enumerate(result['boxes']):
+        if box != [0, 0, 0, 0]:
+            for k in result:
+                new_result[k].append(result[k][index])
     return new_result
 
     
