@@ -8,7 +8,7 @@ import argparse
 from test_cases import test_cases
 from frame_processor import vlm_processor,visualize_results_lang,visualize_result_image
 import torch
-def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=None,max_frame=None,result_video=None):
+def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=None,max_frame=None,result_video=None,run_type='lang'):
     print(f"Searching with Language Queries: {text_queries} in video {video_path}")
     device='cpu'
     all_frame_results=[]
@@ -40,7 +40,7 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
             start=time.perf_counter()
             result=vlm_processor.process_image(frame,text_queries,device)
             result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
-            result = remove_zero_boxes(result)
+            result = remove_zero_boxes(result, run_type)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -58,7 +58,7 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
     video.release()
     return all_frame_results
 
-def process_video_owl_image(video_path:str,image_queries_names,interval=6,result_dir=None,max_frame=None,result_video=None):
+def process_video_owl_image(video_path:str,image_queries_names,interval=6,result_dir=None,max_frame=None,result_video=None,run_type='image'):
     print(f"Searching with image queries {video_path} in video {video_path}")
     device='cpu'
     all_frame_results=[]
@@ -88,7 +88,7 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
             start=time.perf_counter()
             result=vlm_processor.image_query(frame,image_queries,device)
             result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
-            result = remove_zero_boxes(result)
+            result = remove_zero_boxes(result, run_type)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -166,17 +166,26 @@ def non_max_suppression_fast(boxes, overlapThresh):
         idxs = np.delete(idxs, last)
     return boxes.astype("int").tolist()
 
-def remove_zero_boxes(result):
-    #image query
-    if 'boxes' not in result or 'labels' not in result:
+def remove_zero_boxes(result, run_type):
+    if 'boxes' not in result:
         return result
-    new_result = {'boxes': [], 'scores': [], 'labels': []}
-    for box, score, label in zip(result['boxes'], result['scores'], result['labels']):
-        if box != [0, 0, 0, 0]:
-            new_result['boxes'].append(box)
-            new_result['scores'].append(score)
-            new_result['labels'].append(label)
+    if run_type=='lang':
+        new_result = {'boxes': [], 'scores': [], 'labels': []}
+        for box, score, label in zip(result['boxes'], result['scores'], result['labels']):
+            if box != [0, 0, 0, 0]:
+                new_result['boxes'].append(box)
+                new_result['scores'].append(score)
+                new_result['labels'].append(label)
+    elif run_type=='image':
+        new_result = {'boxes': [], 'scores': [], 'labels': []}
+        for box, score in zip(result['boxes'], result['scores']):
+            if box != [0, 0, 0, 0]:
+                new_result['boxes'].append(box)
+                new_result['scores'].append(score)
+    else:
+        print("Invalid run_type: must be image or lang ")
     return new_result
+
     
 #If you are using CUHK CSE slurm cluster
 #export SLURM_CONF=/opt1/slurm/gpu-slurm.conf 
