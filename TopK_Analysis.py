@@ -132,7 +132,7 @@ def TopK_Visualization(data, input_video:str, run_type:str, output_folder='resul
                 plt.axis('off')
 
                 for box, score, label in zip(item['boxes'], item['scores'], item['labels']):
-                    # BUG when using color_dict!!!
+                    # BUG when using color_dict!!! 
                     color = 'w' # color_dict[label]
 
                     rect = patches.Rectangle((box[0], box[1]), box[2] - box[0], box[3] - box[1], linewidth=1,
