@@ -14,14 +14,22 @@ test_cases=[
         'object':['test_images/rainbow_shirt_white_shoes_girl.jpg'],
         'type':'image',
     },
+    #testcases above already demoed
+    #please fine tune these two langauge queries
     {
-        'object':'black and white striped backpack',
-        'intervals': [('01:10', '01:15')],
+        'object':'girl wearing pink coat and black pants with a pink luggage',
+        'type':'lang'
     },
     {
+        'object':'man wearing white shirt with a bear on it with two blue suitcases',
+        'type':'lang'
+    }
+    {
         'object':'black and white striped backpack',
+        'type':'lang',
         'intervals': [('01:10', '01:15')],
     },
+    ######## use the testcases above first ########
     {
         'object': 'black backpack',
         'intervals': [('00:17', '00:19'), ('00:23', '00:24'), ('00:49', '00:50'), ('00:59', '01:14')],
