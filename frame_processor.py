@@ -50,7 +50,7 @@ class FrameProcessor:
         #no label for image query
         results={
             'scores':raw_results[0]["scores"].tolist(),
-            #'labels':raw_results[0]["labels"].tolist(),
+            'labels':torch.zeros_like(raw_results[0]["scores"],dtype=torch.int).tolist(),
             'boxes':raw_results[0]["boxes"].tolist(),
             'logits':inverse_sigmoid(raw_results[0]["scores"]).tolist(),
         }

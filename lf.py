@@ -58,7 +58,7 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
     return all_frame_results
 
 def process_video_owl_image(video_path:str,image_queries_names,interval=6,result_dir=None,max_frame=None,result_video=None,run_type='image'):
-    print(f"Searching with image queries {video_path} in video {video_path}")
+    print(f"Searching with image queries {image_queries_names} in video {video_path}")
     device='cpu'
     all_frame_results=[]
     if torch.cuda.is_available():
@@ -122,7 +122,9 @@ def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,
             print(f"Result Json: {result_json_name}")
             json.dump({
                 'query':queries,
+                'type':run_type,
                 'result':result,
+                
             },f)
     elif run_type=='lang':
         result=process_video_owl_lang(video_name,queries,interval,result_dir=None,max_frame=max_frame,result_video=result_video_name)
@@ -130,7 +132,9 @@ def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,
             print(f"Result Json: {result_json_name}")
             json.dump({
                 'query':queries,
+                'type':run_type,
                 'result':result,
+                
             },f)
     else:
         print("Invalid run_type: must be image or lang ")

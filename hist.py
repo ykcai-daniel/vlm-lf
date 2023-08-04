@@ -15,5 +15,5 @@ if __name__=='__main__':
     plt.title('Scores Distribution ('+f.name+')')
     plt.xlabel('Score')
     plt.ylabel('Frequency')
-    hist_name=f"{sys.argv[1]}_hist.jpg"
-    plt.savefig('hist_img1.jpg')
+    hist_name=f"{str(sys.argv[1])}_hist.jpg"
+    plt.savefig(hist_name)
