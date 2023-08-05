@@ -30,6 +30,9 @@ class FrameResult:
 
     def get_prop(self,prop:str):
         return [record[prop_loc[prop]] for record in self.data]
+    
+    def get_result_by_label(self,label:int):
+        return [record for record in self.data if record[3]==label] 
 
     def skipped(self):
         return self.data==None
@@ -72,7 +75,6 @@ class VideoResult:
                 results[self.labels[l]].append(f_logits[index])
         return results
 
-
     def sort_bbox_logits(self):
         raise NotImplementedError
 
@@ -113,9 +115,10 @@ class VideoResult:
             image_name=file_name(connected_name)
             raw_name,suffix=split_suffix(image_name)
             video=cv2.VideoCapture(video_path)
-            os.makedirs(f'./results/{video_name}_{raw_name}',exist_ok=True)
+            result_save_path=f'./results/{video_name}_{raw_name}'
+            os.makedirs(result_save_path,exist_ok=True)
             print(f'Writing {len(top_k_frames[label])} image for {label}')
-            print(f"Top-{top_k} frames saved to: ./results/{video_name}_{raw_name}")
+            print(f"Top-{top_k} frames saved to: {result_save_path}")
             for i,current_index in enumerate(top_k_frames[label]):
                 #random access in video is actually slow
                 video.set(cv2.CAP_PROP_POS_FRAMES, current_index)
@@ -124,6 +127,13 @@ class VideoResult:
                     print(f"Error: Unable to read frame {current_index}")
                     continue
                 write_path=f'./results/{video_name}_{raw_name}/{i}.jpg'
+                label_location=self.labels.index(label)
+                box_filtered=self.get_frame_result(current_index).get_result_by_label(label_location)
+                for box in box_filtered:
+                    point=box[2]
+                    p1_x,p1_y,p2_x,p2_y=int(point[0]),int(point[1]),int(point[2]),int(point[3])
+                    cv2.rectangle(img=frame,pt1=(p1_x,p1_y),pt2=(p2_x,p2_y),color=(0,0,255),thickness=3)
+                    cv2.putText(frame, "{:.2f}".format(box[1]),(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
                 cv2.putText(frame, f"Frame {current_index} Rank {i}",(25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
                 cv2.imwrite(write_path,frame)
             video.release()
@@ -153,7 +163,7 @@ import json
 if __name__=='__main__':
     #lang query
     #change to the name of the json output by lf.py
-    result_json_file='results/hong_kong_airport_demo_data.mp4_202308041633_image.json'
+    result_json_file='results/hong_kong_airport_demo_data.mp4_202308041624_image.json'
     video_results=VideoResult()
     with open(result_json_file) as f:
         json_data=json.load(f)
@@ -162,6 +172,6 @@ if __name__=='__main__':
     print(video_results.sort_logits_frame_max(top_k=50))
     video_results.dump_top_k_frames(50,'data/hong_kong_airport_demo_data.mp4')
     #change the location to where you want the grid
-    make_grid('results/hong_kong_airport_demo_data.mp4_rainbow_shirt_white_shoes_girl')
+    make_grid('./results/hong_kong_airport_demo_data.mp4_pink_short_luggage')
 
     
