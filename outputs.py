@@ -110,6 +110,7 @@ class VideoResult:
     def dump_top_k_frames(self,top_k,video_path:str):
         video_name=file_name(video_path)
         top_k_frames=self.sort_logits_frame_max(top_k)
+        final_result_dir=[]
         for label in top_k_frames:
             connected_name=label.replace(' ','_')
             image_name=file_name(connected_name)
@@ -137,6 +138,8 @@ class VideoResult:
                 cv2.putText(frame, f"Frame {current_index} Rank {i}",(25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
                 cv2.imwrite(write_path,frame)
             video.release()
+            final_result_dir.append(result_save_path)
+        return final_result_dir
 
 
 
@@ -163,15 +166,16 @@ import json
 if __name__=='__main__':
     #lang query
     #change to the name of the json output by lf.py
-    result_json_file='results/hong_kong_airport_demo_data.mp4_202308041624_image.json'
+    result_json_file='results/hong_kong_airport_demo_data.mp4_202308051051_lang.json'
     video_results=VideoResult()
     with open(result_json_file) as f:
         json_data=json.load(f)
         video_results.from_data_dict(json_data)
     print(f"Video results loaded")
     print(video_results.sort_logits_frame_max(top_k=50))
-    video_results.dump_top_k_frames(50,'data/hong_kong_airport_demo_data.mp4')
+    save_dir=video_results.dump_top_k_frames(50,'data/hong_kong_airport_demo_data.mp4')
     #change the location to where you want the grid
-    make_grid('./results/hong_kong_airport_demo_data.mp4_pink_short_luggage')
+    for dir in save_dir:
+        make_grid(dir)
 
     

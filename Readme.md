@@ -13,7 +13,7 @@ ffmpeg -i hong_kong_airport_3.mp4 -vf fps=5 img%04d.jpg
 ```
 ## Run Testcases
 ```
-python lf.py --video_name {name} --query_index {index} --query_type{'lang'|'image'}
+python lf.py --video_name {name} --query_index {index}
 ```
 Here, {name} is the relative path from content root to the video; {index} is the index of the testcase in `test_cases.py`;
 For example, to run the first test case:
@@ -21,5 +21,9 @@ For example, to run the first test case:
 python lf.py --video_name data/hong_kong_airport_demo_data.mp4 --query_index 0
 ```
 The program will load the first testcase which uses the text query `['white backpack','white suitcase','black backpack','black suitcase']`
-
+## Analyzing the Results
+`outputs.py` will read the json output by `lf.py` and create visualization of top-k frames in a grid
+```
+python outputs.py 
+```
 
