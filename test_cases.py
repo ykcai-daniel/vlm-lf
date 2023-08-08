@@ -5,18 +5,33 @@ test_cases=[
     #Note: even if there is only one object to be found,
     #'object' should still be a list!
     {
+        #general objects
         'object':['white backpack','white suitcase','black backpack','black suitcase'],
         'type':'lang',
     },
     {
+        #novel luggage 1 lang
+        'object':['black and white striped backpack'],
+        'type':'lang',
+        'intervals': [('01:10', '01:15')],
+    },
+    {
+        #novel luggage 2 img
         'object':['test_images/pink_short_luggage.jpg'],
         'type':'image',
     },
     {
+        #novel luggage 2 lang
+        'object':['pink suitcase'],
+        'type':'lang',
+    },
+    {
+        #person 1 image
         'object':['test_images/rainbow_shirt_white_shoes_girl.jpg'],
         'type':'image',
     },
     {
+        #person 1 lang
         'object':['girl wearing pink coat and black pants with a pink luggage'],
         'type':'lang'
     },
@@ -25,18 +40,24 @@ test_cases=[
     #please fine tune these two langauge queries
 
     {
-        'object':['man wearing white shirt with a bear on it with two blue suitcases'],
+        #person 2 lang
+
+        'object':['black shirt man'],
         'type':'lang'
     },
     {
+        #person 2 img
+
         'object':['test_images/white_shirt_blue_jeans_man.jpg'],
         'type':'image',
     },
     {
-        'object':['black and white striped backpack'],
+        #person 2 img
+
+        'object':['white shirt blue jeans man'],
         'type':'lang',
-        'intervals': [('01:10', '01:15')],
     },
+
     ######## use the testcases above first ########
     {
         'object': ['black backpack'],

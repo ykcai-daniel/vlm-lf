@@ -138,7 +138,11 @@ class VideoResult:
                 write_path=f'./results/{video_name}_{raw_name}/{top_frame_index}.jpg'
                 label_location=self.labels.index(label)
                 box_filtered=self.get_frame_result(current_index).get_result_by_label(label_location)
-                max_key_location,_=max(enumerate(box_filtered), key=(lambda x: x[1]))
+                try:
+                    max_key_location,_=max(enumerate(box_filtered), key=(lambda x: x[1]))
+                except ValueError:
+                    print(f"Warning: This object appeared in {top_frame_index} frames, which is less than {top_k}.")
+                    break
                 print(f"Max box location: {max_key_location}")
                 for i,box in enumerate(box_filtered):
                     point=box[2]
@@ -172,9 +176,10 @@ def visualize_logits(label_to_logits):
 
 def make_grid(image_dir,row_size=4):
     transform =torchvision.transforms.Compose([torchvision.transforms.ToTensor(),torchvision.transforms.Resize(300)])
-    images=[ transform(Image.open(os.path.join(image_dir,f'{i+1}.jpg'))) for i in range(row_size*row_size)]
+    dir_name=image_dir.split('/')[-1]
+    images=[ transform(Image.open(os.path.join(image_dir,f'{i}.jpg'))) for i in range(row_size*row_size)]
     grid = torchvision.utils.make_grid(images, nrow=row_size,pad_value=4)
-    torchvision.transforms.ToPILImage()(grid).save(f'{image_dir}/summary_{row_size}x{row_size}.jpg')
+    torchvision.transforms.ToPILImage()(grid).save(f'{image_dir}/summary_{dir_name}_{row_size}x{row_size}.jpg')
 
 
 
