@@ -22,8 +22,16 @@ python lf.py --video_name data/hong_kong_airport_demo_data.mp4 --query_index 0
 ```
 The program will load the first testcase which uses the text query `['white backpack','white suitcase','black backpack','black suitcase']`
 ## Analyzing the Results
-`outputs.py` will read the json output by `lf.py` and create visualization of top-k frames in a grid
+`outputs.py` will read the json output by `lf.py` (should be in `results`) and create visualization of top-k frames in a grid
 ```
-python outputs.py 
+python outputs.py --video_results {json output of lf.py } --dump_type {frame|chunk} --top_k {int}
+```
+For example:
+```
+python outputs.py --video_results results/hong_kong_airport_demo_data.mp4_202308081040_lang.json --dump_type frame --top_k 50
+```
+If you want to output chunks:
+```
+python outputs.py --video_results results/hong_kong_airport_demo_data.mp4_202308081040_lang.json --dump_type frame --top_k 16 --chunk_size 60
 ```
 

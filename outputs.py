@@ -6,6 +6,7 @@ import os
 import torchvision
 from PIL import Image
 from utils.utils import file_name,split_suffix
+import argparse
 prop_loc={
         'scores':0,
         'logits':1,
@@ -36,6 +37,7 @@ class FrameResult:
     def get_result_by_label(self,label:int):
         return [record for record in self.data if record[3]==label] 
 
+    #the original video is 30fps and we are processing at 10fps
     def skipped(self):
         return self.data==None
     
@@ -92,6 +94,7 @@ class VideoResult:
     #return top k frames of each label in self.labels
     
 
+
     #sort all the frame based on its score: the score of a frame
     #is calculated using frame_scoror, which takes in the logits of all the bbox and output a scalar score
     def sort_logits_frame(self,frame_scorer,top_k=None)->dict[str,list[int]]:
@@ -108,6 +111,59 @@ class VideoResult:
             for k in sorted_frames:
                 sorted_frames[k]=sorted_frames[k][:top_k]
         return sorted_frames
+    
+    def get_props(self,prop):
+        result={}
+        for k in self.labels:
+            result[k]=[r.get_prop(prop) for r in self.frame_results if not r.skipped()]
+        return result
+        
+    #moving average
+    def sort_logits_chunks_ma(self,chunk_len,default=-100):
+        def max_scorer(x):
+            if len(x)==0:
+                return default
+            return max(x)
+        def ma(scores):
+            return sum(scores)/len(scores)
+        return self.sort_logits_chunks_partitioned(max_scorer,ma,chunk_len)
+    
+
+    #sliding window: slide over n-chunk_len chunks (might have overlapping chunks)
+    def sort_logits_chunks_slide_window(self,frame_scorer,chunk_scorer,chunk_len)->dict[str,list[tuple[int,int]]]:
+        intervals={}
+        non_empty_frames=[fr.frame_index for fr in self.frame_results if not fr.skipped()]
+        for label in self.labels:
+            logits=self.get_props('logits')[label]
+            assert(len(logits)==len(non_empty_frames))
+            frame_scorers=[frame_scorer(frame_logits) for frame_logits in logits]
+            chunk_scores=[]
+            for i in range(len(non_empty_frames)-chunk_len+1):
+                chunk_scores.append((non_empty_frames[i],chunk_scorer(frame_scorers[i:i+chunk_len])))
+            chunk_scores.sort(reverse=True,key=lambda a:a[1])
+            #can be overlapping chunks
+            interval=[(c[0],c[0]+chunk_len) for c in chunk_scores]
+            intervals[label]=interval
+        return intervals
+
+    #everest implementation: partition n frames into n/chunk_len chunks
+    def sort_logits_chunks_partitioned(self,frame_scorer,chunk_scorer,chunk_len:int)->dict[str,list[tuple[int,int]]]:
+        intervals={}
+        non_empty_frames=[fr.frame_index for fr in self.frame_results if not fr.skipped()]
+        for label in self.labels:
+            logits=self.get_props('logits')[label]
+            assert(len(logits)==len(non_empty_frames))
+            frame_scores=[frame_scorer(frame_logits) for frame_logits in logits]
+            chunk_scores=[]
+            for i in range(len(non_empty_frames)//chunk_len):
+                score_of_chunk=chunk_scorer(frame_scores[i*chunk_len:(i+1)*chunk_len])
+                chunk_start=i*chunk_len
+                chunk_scores.append((chunk_start,score_of_chunk))
+            chunk_scores.sort(reverse=True,key=lambda a:a[1])
+            #can be overlapping chunks
+            interval=[(c[0],c[0]+chunk_len) for c in chunk_scores]
+            intervals[label]=interval
+        return intervals
 
     def get_frame_result(self,index):
         return self.frame_results[index]
@@ -186,16 +242,29 @@ def make_grid(image_dir,row_size=4):
 if __name__=='__main__':
     #lang query
     #change to the name of the json output by lf.py
-    result_json_file=sys.argv[1]
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--video_results',type=str)
+    parser.add_argument('--dump_type',type=str,choices=['frame','chunk'],help='frame or chunk')
+    parser.add_argument('--top_k',type=str,default=16)
+    parser.add_argument('--chunk_size',type=str,default=60)
+    args=parser.parse_args()
     video_results=VideoResult()
-    with open(result_json_file) as f:
+    with open(args.video_results) as f:
         json_data=json.load(f)
         video_results.from_data_dict(json_data)
-    print(f"Video results loaded")
-    print(video_results.sort_logits_frame_max(top_k=50))
-    save_dir=video_results.dump_top_k_frames(50,'data/hong_kong_airport_demo_data.mp4')
-    #change the location to where you want the grid
-    for dir in save_dir:
-        make_grid(dir)
+    top_k=int(args.top_k)
+    print(f"Video results loaded Sorting top-{top_k}")
+    if args.dump_type=='frame':
+        save_dir=video_results.dump_top_k_frames(top_k,'data/hong_kong_airport_demo_data.mp4')
+        for dir in save_dir:
+            make_grid(dir)
+    elif args.dump_type=='chunk':
+        sorted_result=video_results.sort_logits_chunks_ma(int(args.chunk_size))
+        for k in sorted_result:
+            sorted_result[k]=sorted_result[k][:top_k]
+        print(sorted_result)
+    else:
+        print("Dump result can only be chunk or frame")
+    
 
     
