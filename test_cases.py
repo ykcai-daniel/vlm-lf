@@ -16,15 +16,21 @@ test_cases=[
         'object':['test_images/rainbow_shirt_white_shoes_girl.jpg'],
         'type':'image',
     },
-    #testcases above already demoed
-    #please fine tune these two langauge queries
     {
         'object':['girl wearing pink coat and black pants with a pink luggage'],
         'type':'lang'
     },
+    
+    #testcases above already demoed
+    #please fine tune these two langauge queries
+
     {
         'object':['man wearing white shirt with a bear on it with two blue suitcases'],
         'type':'lang'
+    },
+    {
+        'object':['test_images/white_shirt_blue_jeans_man.jpg'],
+        'type':'image',
     },
     {
         'object':['black and white striped backpack'],

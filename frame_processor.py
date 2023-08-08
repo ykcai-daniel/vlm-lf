@@ -7,6 +7,50 @@ import os
 import argparse
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 import torch
+
+def non_max_suppression_fast(boxes, overlapThresh):
+    if len(boxes) == 0:
+        return []
+    if boxes.dtype.kind == "i":
+        boxes = boxes.astype("float")
+    pick = []
+    x1 = boxes[:,0]
+    y1 = boxes[:,1]
+    x2 = boxes[:,2]
+    y2 = boxes[:,3]
+    #add tiny number to avoid zero
+    area = (x2 - x1 + 1) * (y2 - y1 + 1)+1e-7
+    idxs = np.argsort(y2)
+    while len(idxs) > 0:
+        last = len(idxs) - 1
+        i = idxs[last]
+        pick.append(i)
+        xx1 = np.maximum(x1[i], x1[idxs[:last]])
+        yy1 = np.maximum(y1[i], y1[idxs[:last]])
+        xx2 = np.minimum(x2[i], x2[idxs[:last]])
+        yy2 = np.minimum(y2[i], y2[idxs[:last]])
+        w = np.maximum(0, xx2 - xx1 + 1)
+        h = np.maximum(0, yy2 - yy1 + 1)
+        overlap = (w * h) / area[idxs[:last]]
+        to_zero = np.where(overlap > overlapThresh)[0]
+        x1[idxs[to_zero]] = 0
+        y1[idxs[to_zero]] = 0
+        x2[idxs[to_zero]] = 0
+        y2[idxs[to_zero]] = 0
+        idxs = np.delete(idxs, last)
+    return boxes.astype("int").tolist()
+
+def remove_zero_boxes(result):
+    if 'boxes' not in result:
+        return result
+    new_result={k:[] for k in result}
+    for index,box in enumerate(result['boxes']):
+        box_int=[int(i) for i in box]
+        if box_int != [0, 0, 0, 0]:
+            for k in result:
+                new_result[k].append(result[k][index])
+    return new_result
+
 def inverse_sigmoid(scores):
     return torch.log(scores/(torch.ones_like(scores,dtype=torch.float)-scores))
 
@@ -33,6 +77,8 @@ class FrameProcessor:
             'logits':inverse_sigmoid(raw_results[0]["scores"]).tolist(),
             'boxes':raw_results[0]["boxes"].tolist()
         }
+        results['boxes']=non_max_suppression_fast(np.array(results['boxes']), 0.3)
+        results = remove_zero_boxes(results)
         return results
     def image_query(self,image,image_query,device='cpu'):
         inputs = self.processor(images=image, query_images=image_query, return_tensors="pt").to(device)
@@ -54,6 +100,8 @@ class FrameProcessor:
             'boxes':raw_results[0]["boxes"].tolist(),
             'logits':inverse_sigmoid(raw_results[0]["scores"]).tolist(),
         }
+        results['boxes']=non_max_suppression_fast(np.array(results['boxes']), 0.3)
+        results = remove_zero_boxes(results)
         return results
 
 def visualize_results_lang(image,result,classes):

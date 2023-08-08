@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+import json
+import sys
 import cv2
 import os
 import torchvision
@@ -75,6 +77,7 @@ class VideoResult:
                 results[self.labels[l]].append(f_logits[index])
         return results
 
+    #sort all the bbox based on its logit value
     def sort_bbox_logits(self):
         raise NotImplementedError
 
@@ -88,6 +91,9 @@ class VideoResult:
         return self.sort_logits_frame(max_scorer,top_k)
     #return top k frames of each label in self.labels
     
+
+    #sort all the frame based on its score: the score of a frame
+    #is calculated using frame_scoror, which takes in the logits of all the bbox and output a scalar score
     def sort_logits_frame(self,frame_scorer,top_k=None)->dict[str,list[int]]:
         sorted_frames={}
         non_empty_frames=[fr.frame_index for fr in self.frame_results if not fr.skipped()]
@@ -106,7 +112,8 @@ class VideoResult:
     def get_frame_result(self,index):
         return self.frame_results[index]
     
-    #TODO: write the frames in single pass
+    
+    #write the top k frames and return the result dir
     def dump_top_k_frames(self,top_k,video_path:str):
         video_name=file_name(video_path)
         top_k_frames=self.sort_logits_frame_max(top_k)
@@ -120,29 +127,37 @@ class VideoResult:
             os.makedirs(result_save_path,exist_ok=True)
             print(f'Writing {len(top_k_frames[label])} image for {label}')
             print(f"Top-{top_k} frames saved to: {result_save_path}")
-            for i,current_index in enumerate(top_k_frames[label]):
+            for top_frame_index,current_index in enumerate(top_k_frames[label]):
+                #TODO: write the frames in single pass
                 #random access in video is actually slow
                 video.set(cv2.CAP_PROP_POS_FRAMES, current_index)
                 ret, frame = video.read()
                 if not ret:
                     print(f"Error: Unable to read frame {current_index}")
                     continue
-                write_path=f'./results/{video_name}_{raw_name}/{i}.jpg'
+                write_path=f'./results/{video_name}_{raw_name}/{top_frame_index}.jpg'
                 label_location=self.labels.index(label)
                 box_filtered=self.get_frame_result(current_index).get_result_by_label(label_location)
-                for box in box_filtered:
+                max_key_location,_=max(enumerate(box_filtered), key=(lambda x: x[1]))
+                print(f"Max box location: {max_key_location}")
+                for i,box in enumerate(box_filtered):
                     point=box[2]
                     p1_x,p1_y,p2_x,p2_y=int(point[0]),int(point[1]),int(point[2]),int(point[3])
-                    cv2.rectangle(img=frame,pt1=(p1_x,p1_y),pt2=(p2_x,p2_y),color=(0,0,255),thickness=3)
+                    if i==max_key_location:
+                        print(f"Max box: {box}")
+                        color=(0,215,255)
+                    else:
+                        color=(0,0,255)
+                    cv2.rectangle(img=frame,pt1=(p1_x,p1_y),pt2=(p2_x,p2_y),color=color,thickness=3)
                     cv2.putText(frame, "{:.2f}".format(box[1]),(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
-                cv2.putText(frame, f"Frame {current_index} Rank {i}",(25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                cv2.putText(frame, f"Frame {current_index} Rank {top_frame_index}",(25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
                 cv2.imwrite(write_path,frame)
             video.release()
             final_result_dir.append(result_save_path)
         return final_result_dir
 
 
-
+#plot the histogram for logit distribution
 def visualize_logits(label_to_logits):
     for k in label_to_logits:
         print(f"bboxs count of {k}: {len(label_to_logits[k])}")
@@ -162,11 +177,11 @@ def make_grid(image_dir,row_size=4):
     torchvision.transforms.ToPILImage()(grid).save(f'{image_dir}/summary_{row_size}x{row_size}.jpg')
 
 
-import json
+
 if __name__=='__main__':
     #lang query
     #change to the name of the json output by lf.py
-    result_json_file='results/hong_kong_airport_demo_data.mp4_202308051051_lang.json'
+    result_json_file=sys.argv[1]
     video_results=VideoResult()
     with open(result_json_file) as f:
         json_data=json.load(f)

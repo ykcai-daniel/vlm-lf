@@ -8,6 +8,8 @@ import argparse
 from test_cases import test_cases
 from frame_processor import vlm_processor,visualize_results_lang,visualize_result_image
 import torch
+
+#TODO: remove duplicate code
 def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=None,max_frame=None,result_video=None,run_type='lang'):
     print(f"Searching with Language Queries: {text_queries} in video {video_path}")
     device='cpu'
@@ -38,8 +40,6 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
         if frame_count%interval==0:
             start=time.perf_counter()
             result=vlm_processor.process_image(frame,text_queries,device)
-            result = remove_zero_boxes(result)
-            result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -85,8 +85,6 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
         if frame_count%interval==0:
             start=time.perf_counter()
             result=vlm_processor.image_query(frame,image_queries,device)
-            result = remove_zero_boxes(result)
-            result['boxes']=non_max_suppression_fast(np.array(result['boxes']), 0.3)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
@@ -138,47 +136,6 @@ def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,
             },f)
     else:
         print("Invalid run_type: must be image or lang ")
-
-def non_max_suppression_fast(boxes, overlapThresh):
-    if len(boxes) == 0:
-        return []
-    if boxes.dtype.kind == "i":
-        boxes = boxes.astype("float")
-    pick = []
-    x1 = boxes[:,0]
-    y1 = boxes[:,1]
-    x2 = boxes[:,2]
-    y2 = boxes[:,3]
-    area = (x2 - x1 + 1) * (y2 - y1 + 1)
-    idxs = np.argsort(y2)
-    while len(idxs) > 0:
-        last = len(idxs) - 1
-        i = idxs[last]
-        pick.append(i)
-        xx1 = np.maximum(x1[i], x1[idxs[:last]])
-        yy1 = np.maximum(y1[i], y1[idxs[:last]])
-        xx2 = np.minimum(x2[i], x2[idxs[:last]])
-        yy2 = np.minimum(y2[i], y2[idxs[:last]])
-        w = np.maximum(0, xx2 - xx1 + 1)
-        h = np.maximum(0, yy2 - yy1 + 1)
-        overlap = (w * h) / area[idxs[:last]]
-        to_zero = np.where(overlap > overlapThresh)[0]
-        x1[idxs[to_zero]] = 0
-        y1[idxs[to_zero]] = 0
-        x2[idxs[to_zero]] = 0
-        y2[idxs[to_zero]] = 0
-        idxs = np.delete(idxs, last)
-    return boxes.astype("int").tolist()
-
-def remove_zero_boxes(result):
-    if 'boxes' not in result:
-        return result
-    new_result={k:[] for k in result}
-    for index,box in enumerate(result['boxes']):
-        if box != [0, 0, 0, 0]:
-            for k in result:
-                new_result[k].append(result[k][index])
-    return new_result
 
     
 #If you are using CUHK CSE slurm cluster
