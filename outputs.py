@@ -7,6 +7,7 @@ import torchvision
 from PIL import Image
 from utils.utils import file_name,split_suffix
 import argparse
+#location of each property at self.data of FrameResult
 prop_loc={
         'scores':0,
         'logits':1,
@@ -227,7 +228,6 @@ class VideoResult:
             os.makedirs(result_save_path,exist_ok=True)
             print(f"Top-{top_k} chunks will be saved in: {result_save_path}")
             video = cv2.VideoCapture(video_path)
-
             for i, chunk in enumerate(sorted_result[label]):
                 start, end=chunk
                 edited_frames = []
@@ -257,16 +257,13 @@ class VideoResult:
                             color=(0,0,255)
                         cv2.rectangle(img=frame,pt1=(p1_x,p1_y),pt2=(p2_x,p2_y),color=color,thickness=3)
                         cv2.putText(frame, "{:.2f}".format(box[1]),(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
-                    cv2.putText(frame, f"Frame {frame_index} Rank {i}",(25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
                     edited_frames.append(frame)
                 print(len(edited_frames))
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 chunk_name = f'{result_save_path}/chunk_rank{i}.mp4'
                 chunk_writer = cv2.VideoWriter(chunk_name, fourcc, 30, (edited_frames[0].shape[1], edited_frames[0].shape[0]))
-
                 for frame in edited_frames:
                     chunk_writer.write(frame)
-                
                 print(f'Chunk {i} saved to {chunk_name}')
                 chunk_writer.release()
             video.release()

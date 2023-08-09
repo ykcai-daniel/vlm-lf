@@ -34,6 +34,8 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
         ret, frame = video.read()
         if not ret:
             break
+        #Very important: OpenCV read an image as BGR yet pytorch models assume an image is RGB
+        frame=cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
         if max_frame is not None:
             if max_frame<=frame_count:
                 break
@@ -53,7 +55,8 @@ def process_video_owl_lang(video_path:str,text_queries,interval=6,result_dir=Non
         else:
             all_frame_results.append({'frame':frame_count})
         frame_count=frame_count+1
-    video_writer.release()
+    if result_video is not None:
+        video_writer.release()
     video.release()
     return all_frame_results
 
@@ -64,8 +67,10 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
     if torch.cuda.is_available():
         device='cuda'
     vlm_processor.model.to(device)
-    print ('Useing '+ device)
+    print ('Using '+ device)
+    #convert BGR to RGB
     image_queries=[cv2.imread(name) for name in image_queries_names]
+    image_queries=[cv2.cvtColor(i,cv2.COLOR_BGR2RGB) for i in image_queries]
     video=cv2.VideoCapture(video_path)
     if result_dir is not None:
         os.makedirs(f'./results/{result_dir}',exist_ok=True)
@@ -79,6 +84,8 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
         ret, frame = video.read()
         if not ret:
             break
+        #Very important: OpenCV read an image as BGR yet pytorch models assume an image is RGB
+        frame=cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
         if max_frame is not None:
             if max_frame<=frame_count:
                 break
@@ -98,11 +105,12 @@ def process_video_owl_image(video_path:str,image_queries_names,interval=6,result
         else:
             all_frame_results.append({'frame':frame_count})
         frame_count=frame_count+1
-    video_writer.release()
+    if result_video is not None:
+        video_writer.release()
     video.release()
     return all_frame_results
 
-def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,max_frame=None):
+def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,max_frame=None,visualize_all=False):
     os.makedirs('results',exist_ok=True)
     video_raw_name=video_name.split('/')[-1]
     str_max_frame=''
@@ -111,7 +119,10 @@ def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,
     #append time stamp into name to avoid duplication
     current_time = datetime.datetime.now()
     formatted_time = current_time.strftime("%Y%m%d%H%M")
-    result_video_name=f'./results/{video_raw_name}{str_max_frame}_{formatted_time}_{run_type}.mp4'
+    if visualize_all:
+        result_video_name=f'./results/{video_raw_name}{str_max_frame}_{formatted_time}_{run_type}.mp4'
+    else:
+        result_video_name=None
     result_json_name=f'./results/{video_raw_name}{str_max_frame}_{formatted_time}_{run_type}.json'
     print(f'Result Video Path: {result_video_name}')
     if run_type=='image':
@@ -146,11 +157,12 @@ if __name__=='__main__':
     parser.add_argument('--video_name',type=str)
     parser.add_argument('--query_index',type=int)
     parser.add_argument('--max_frame',type=int,default=None)
+    parser.add_argument('--visualize_all', action='store_true', default=False,help='visualize all bounding boxes of the video')
     args=parser.parse_args()
     video_name=args.video_name
     query=test_cases[args.query_index]['object']
     query_type=test_cases[args.query_index]['type']
-    run_video_to_video(video_name,query,query_type)
+    run_video_to_video(video_name,query,query_type,visualize_all=args.visualize_all)
 
 
     
