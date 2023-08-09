@@ -134,6 +134,7 @@ class VideoResult:
         intervals={}
         non_empty_frames=[fr.frame_index for fr in self.frame_results if not fr.skipped()]
         for label in self.labels:
+            print(self.get_props('logits'))
             logits=self.get_props('logits')[label]
             assert(len(logits)==len(non_empty_frames))
             frame_scorers=[frame_scorer(frame_logits) for frame_logits in logits]
@@ -160,7 +161,6 @@ class VideoResult:
                 chunk_start=i*chunk_len
                 chunk_scores.append((chunk_start,score_of_chunk))
             chunk_scores.sort(reverse=True,key=lambda a:a[1])
-            #can be overlapping chunks
             interval=[(c[0],c[0]+chunk_len) for c in chunk_scores]
             intervals[label]=interval
         return intervals
@@ -215,7 +215,65 @@ class VideoResult:
             video.release()
             final_result_dir.append(result_save_path)
         return final_result_dir
+    
+    def dump_top_k_chunks(self, video_path, sorted_results, top_k):
+        video_name=file_name(video_path)
+        final_result_dir=[]
+        for label in sorted_results:
+            connected_name=label.replace(' ','_')
+            chunk_name=file_name(connected_name)
+            raw_name,suffix=split_suffix(chunk_name)
+            result_save_path=f'./results/{video_name}_{raw_name}_chunks'
+            os.makedirs(result_save_path,exist_ok=True)
+            print(f"Top-{top_k} chunks will be saved in: {result_save_path}")
+            video = cv2.VideoCapture(video_path)
 
+            for i, chunk in enumerate(sorted_result[label]):
+                start, end=chunk
+                edited_frames = []
+                video.set(cv2.CAP_PROP_POS_FRAMES, start)
+                for frame_index in range(start, end+1):
+                    ret, frame = video.read()
+                    if not ret:
+                        print(f"Error: Unable to read frame {frame_index}")
+                        continue
+                    label_location=self.labels.index(label)
+                    box_filtered=self.get_frame_result(frame_index).get_result_by_label(label_location)
+                    try:
+                        max_key_location,_=max(enumerate(box_filtered), key=(lambda x: x[1]))
+                    except ValueError:
+                        print(f"Warning: This object appeared in {i} frames, which is less than {top_k}.")
+                        edited_frames.append(frame)
+                        continue
+                    max_key_location,_=max(enumerate(box_filtered), key=(lambda x: x[1]))
+                    print(f"Max box location: {max_key_location}")
+                    for j, box in enumerate(box_filtered):
+                        point=box[2]
+                        p1_x,p1_y,p2_x,p2_y=int(point[0]),int(point[1]),int(point[2]),int(point[3])
+                        if j==max_key_location:
+                            print(f"Max box: {box}")
+                            color=(0,215,255)
+                        else:
+                            color=(0,0,255)
+                        cv2.rectangle(img=frame,pt1=(p1_x,p1_y),pt2=(p2_x,p2_y),color=color,thickness=3)
+                        cv2.putText(frame, "{:.2f}".format(box[1]),(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+                    cv2.putText(frame, f"Frame {frame_index} Rank {i}",(25, 25), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 3)
+                    edited_frames.append(frame)
+                print(len(edited_frames))
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                chunk_name = f'{result_save_path}/chunk_rank{i}.mp4'
+                chunk_writer = cv2.VideoWriter(chunk_name, fourcc, 30, (edited_frames[0].shape[1], edited_frames[0].shape[0]))
+
+                for frame in edited_frames:
+                    chunk_writer.write(frame)
+                
+                print(f'Chunk {i} saved to {chunk_name}')
+                chunk_writer.release()
+            video.release()
+            final_result_dir.append(result_save_path)
+            # print(final_result_dir)
+            # break
+        return final_result_dir   
 
 #plot the histogram for logit distribution
 def visualize_logits(label_to_logits):
@@ -263,6 +321,7 @@ if __name__=='__main__':
         for k in sorted_result:
             sorted_result[k]=sorted_result[k][:top_k]
         print(sorted_result)
+        save_dir=video_results.dump_top_k_chunks('data/hong_kong_airport_demo_data.mp4',sorted_result,top_k)
     else:
         print("Dump result can only be chunk or frame")
     
