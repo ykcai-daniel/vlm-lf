@@ -1,4 +1,4 @@
-# Open Vocabulary Object Retrieval
+# Open Vocabulary Video Analytics
 ## Data Preparation
 To prepare the Hong Kong airport video, first download this [video](https://www.youtube.com/watch?v=VRmh2gGeBiE) with `data_provider.py`: `python data_provider.py`; Then, devide it into three minute chunks with ffmpeg: 
 ```
@@ -20,7 +20,11 @@ For example, to run the first test case:
 ```
 python lf.py --video_name data/hong_kong_airport_demo_data.mp4 --query_index 0
 ```
-The program will load the first testcase which uses the text query `['white backpack','white suitcase','black backpack','black suitcase']`
+The program will load the first testcase which uses the text query and output a json with the results.
+You can also output the top-k frames:
+```
+python lf.py --video_name data/hong_kong_airport_demo_data.mp4 --query_index 0 --top_k 6 --chunk_size 90
+```
 ## Analyzing the Results
 `outputs.py` will read the json output by `lf.py` (should be in `results`) and create visualization of top-k frames in a grid
 ```

@@ -6,10 +6,20 @@ import numpy as np
 import datetime
 import argparse
 from test_cases import test_cases
+from outputs import VideoResult
 from frame_processor import vlm_processor,visualize_results_lang,visualize_result_image
 import torch
+from typing import Union
 
-def process_video_owl(video_path:str,text_queries=None,image_queries=None,interval=6,result_dir=None,max_frame=None,result_video=None,run_type='both'):
+def process_video_owl(
+        video_path:str,
+        text_queries=None,
+        image_queries=None,
+        interval=6,
+        result_dir=None,
+        max_frame=None,
+        result_video=None,
+        ):
     if text_queries is None and image_queries is None:
         print('Suply either image query or lang query')
         return
@@ -81,7 +91,17 @@ def process_video_owl(video_path:str,text_queries=None,image_queries=None,interv
     video.release()
     return all_frame_results
 
-def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,max_frame=None,visualize_all=False):
+#TODO: create QueryExecutor class
+def run_video(
+            video_name:str,
+            queries:list[str],
+            run_type:str,
+            interval:int=3,
+            max_frame:Union[int,None]=None,
+            visualize_all:bool=False,
+            top_k:Union[int,None]=None,
+            chunk_size:Union[int,None]=None,
+            ):
     os.makedirs('results',exist_ok=True)
     video_raw_name=video_name.split('/')[-1]
     str_max_frame=''
@@ -103,13 +123,21 @@ def run_video_to_video(video_name:str,queries:list[str],run_type:str,interval=3,
         result=process_video_owl(video_name,image_queries=queries,interval=interval,result_dir=None,max_frame=max_frame,result_video=result_video_name)
     elif run_type=='lang':
         result=process_video_owl(video_name,text_queries=queries,interval=interval,result_dir=None,max_frame=max_frame,result_video=result_video_name)
-    with open(result_json_name,'w') as f:
-        print(f"Result Json: {result_json_name}")
-        json.dump({
+    result={
             'query':queries,
             'type':run_type,
             'result':result,
-        },f)
+        }
+    with open(result_json_name,'w') as f:
+        print(f"Result Json: {result_json_name}")
+        json.dump(result,f)
+    video_result=VideoResult()
+    video_result.from_data_dict(result)
+    sorted_chunks_ma=video_result.sort_logits_chunks_ma(chunk_size)
+    result_dirs=video_result.dump_top_k_chunks(video_name,sorted_chunks_ma,top_k)
+    return result_dirs
+
+
 
     
 #If you are using CUHK CSE slurm cluster
@@ -121,11 +149,14 @@ if __name__=='__main__':
     parser.add_argument('--query_index',type=int)
     parser.add_argument('--max_frame',type=int,default=None)
     parser.add_argument('--visualize_all', action='store_true', default=False,help='visualize all bounding boxes of the video')
+    parser.add_argument('--top_k',type=str,default=None,help="top k chunks to output, if None, no chunk will be output")
+    parser.add_argument('--chunk_size',type=int,default=60,help="Number of frames in a chunk") # 3 seconds
     args=parser.parse_args()
     video_name=args.video_name
     query=test_cases[args.query_index]['object']
     query_type=test_cases[args.query_index]['type']
-    run_video_to_video(video_name,query,query_type,visualize_all=args.visualize_all)
+    results_dirs=run_video(video_name,query,query_type,visualize_all=args.visualize_all,top_k=args.top_k,chunk_size=args.chunk_size)
+    print(f"Results saved to {results_dirs}")
 
 
     
