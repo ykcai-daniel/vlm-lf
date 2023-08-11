@@ -5,8 +5,8 @@ test_cases=[
     #Note: even if there is only one object to be found,
     #'object' should still be a list!
     {
-        #general objects
-        'object':['white backpack','white suitcase','black backpack','black suitcase'],
+        #general objects with color
+        'object':['green backpack','red suitcase'],
         'type':'lang',
     },
     {
@@ -54,7 +54,7 @@ test_cases=[
     {
         #person 2 img
 
-        'object':['white shirt blue jeans man'],
+        'object':['dark blue shirt brown pants man'],
         'type':'lang',
     },
 

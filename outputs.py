@@ -6,6 +6,7 @@ import os
 import torchvision
 from PIL import Image
 from utils.utils import file_name,split_suffix
+from utils.fn import max_with_default
 import argparse
 #location of each property at self.data of FrameResult
 prop_loc={
@@ -87,13 +88,22 @@ class VideoResult:
     #return top k frames of each label in self.labels; 
     #use the max logit of each frame as the score of the frame
     def sort_logits_frame_max(self,top_k=None,default=-100)->dict[str,list[int]]:
-        def max_scorer(x):
-            if len(x)==0:
-                return default
-            return max(x)
+        max_scorer=max_with_default(default)
         return self.sort_logits_frame(max_scorer,top_k)
     #return top k frames of each label in self.labels
     
+
+
+    def get_frame_scores(self,frame_scorer):
+        frame_scores={k:[] for k in self.labels}
+        non_empty_frames=[fr.frame_index for fr in self.frame_results if not fr.skipped()]
+        for label in self.labels:
+            for frame in non_empty_frames:
+                frame_logits=self.frame_results[frame].get_prop('logits')
+                frame_labels=self.frame_results[frame].get_prop('labels')
+                same_label_logits=[frame_logits[i] for i,l in enumerate(frame_labels) if self.labels[l]==label]
+                frame_scores[label].append(frame_scorer(same_label_logits))
+        return frame_scores
 
 
     #sort all the frame based on its score: the score of a frame
@@ -121,10 +131,8 @@ class VideoResult:
         
     #moving average
     def sort_logits_chunks_ma(self,chunk_len,default=-100):
-        def max_scorer(x):
-            if len(x)==0:
-                return default
-            return max(x)
+        #the default value should be set to the minimum value of frame scores
+        max_scorer=max_with_default(default)
         def ma(scores):
             return sum(scores)/len(scores)
         return self.sort_logits_chunks_partitioned(max_scorer,ma,chunk_len)
@@ -169,7 +177,14 @@ class VideoResult:
     def get_frame_result(self,index):
         return self.frame_results[index]
     
-    
+    #apply a reducer function to all the logits of the boxes
+    # The reducer should be (float,float)->float 
+    def box_logits_min(self):
+        result=float('+inf')
+        for frame_result in self.frame_results:
+            result=min([result,*frame_result.get_prop('logits')])
+        return result
+
     #write the top k frames and return the result dir
     def dump_top_k_frames(self,top_k,video_path:str):
         video_name=file_name(video_path)

@@ -28,10 +28,10 @@ python outputs.py --video_results {json output of lf.py } --dump_type {frame|chu
 ```
 For example:
 ```
-python outputs.py --video_results results/hong_kong_airport_demo_data.mp4_202308081040_lang.json --dump_type frame --top_k 50
+python outputs.py --video_results results/hong_kong_airport_demo_data.mp4_202308081040_lang.json --dump_type frame --top_k 25
 ```
 If you want to output chunks:
 ```
-python outputs.py --video_results results/hong_kong_airport_demo_data.mp4_202308081040_lang.json --dump_type frame --top_k 16 --chunk_size 60
+python outputs.py --video_results results/hong_kong_airport_demo_data.mp4_202308081040_lang.json --dump_type chunk --top_k 8 --chunk_size 90
 ```
 
