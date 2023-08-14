@@ -22,8 +22,10 @@ if __name__=='__main__':
             if frame_result.skipped():
                 continue
             #bbox[2] is the orignal 
-            box_frame=[(bbox[2],bbox[0],bbox[3]) for bbox in frame_result.data]
-
+            box_frame=[([bbox[2][0], bbox[2][1], bbox[2][2] - bbox[2][0], bbox[2][3]-bbox[2][1]],bbox[0],bbox[3]) for bbox in frame_result.data]
+            # print(f'box_frame = {box_frame}')
+            if frame is None:
+                continue
             start=time.perf_counter()
             tracks = tracker.update_tracks(box_frame, frame=frame) # bbs expected to be a list of detections, each in tuples of ( [left,top,w,h], confidence, detection_class )
             end=time.perf_counter()
