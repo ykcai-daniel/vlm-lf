@@ -7,7 +7,7 @@ import datetime
 import argparse
 from test_cases import test_cases
 from outputs import VideoResult
-from frame_processor import vlm_processor,visualize_results_lang,visualize_result_image
+from frame_processor import vlm_processor,visualize_results
 import torch
 from typing import Union
 
@@ -38,8 +38,8 @@ def process_video_owl(
 
     if query_type=='image':
         # convert BGR to RGB
-        image_queries=[cv2.imread(name) for name in image_queries]
-        image_queries=[cv2.cvtColor(i,cv2.COLOR_BGR2RGB) for i in image_queries]
+        image_queries_cv2=[cv2.imread(name) for name in image_queries]
+        image_queries_cv2=[cv2.cvtColor(i,cv2.COLOR_BGR2RGB) for i in image_queries_cv2]
     
     video = cv2.VideoCapture(video_path)
 
@@ -69,15 +69,18 @@ def process_video_owl(
             if query_type=='lang':
                 result=vlm_processor.process_image(frame,text_queries,device)
             else:
-                result=vlm_processor.image_query(frame,image_queries,device)
+                result=vlm_processor.image_query(frame,image_queries_cv2,device)
             result['frame']=frame_count
             all_frame_results.append(result)
             end=time.perf_counter()
             print(f"Results of frame {frame_count}: {result['scores']} Time:{end-start}s")
             if query_type=='lang':
-                visualized_image=visualize_results_lang(frame,result,text_queries)
+                class_string=", ".join([f"{index+1}->{c}" for index,c in enumerate(text_queries)])
+                format_string=f"Classes: [{class_string}]"
+                visualized_image=visualize_results(frame,result,text_queries,format_string)
             else:
-                visualized_image=visualize_result_image(frame,result,f"Image: {image_queries[0]}")
+                format_string=f"Image: {', '.join(image_queries)}"
+                visualized_image=visualize_results(frame,result,image_queries,format_string)
             if result_dir is not None:
                 result_path=f'./results/{result_dir}/frame_{frame_count}.jpg'
                 cv2.imwrite(result_path,visualized_image)
@@ -131,11 +134,14 @@ def run_video(
     with open(result_json_name,'w') as f:
         print(f"Result Json: {result_json_name}")
         json.dump(result,f)
-    video_result=VideoResult()
-    video_result.from_data_dict(result)
-    sorted_chunks_ma=video_result.sort_logits_chunks_ma(chunk_size)
-    result_dirs=video_result.dump_top_k_chunks(video_name,sorted_chunks_ma,top_k)
-    return result_dirs
+    if top_k is not None:
+        video_result=VideoResult()
+        video_result.from_data_dict(result)
+        sorted_chunks_ma=video_result.sort_logits_chunks_ma(chunk_size)
+        result_dirs=video_result.dump_top_k_chunks(video_name,sorted_chunks_ma,top_k)
+        return result_dirs
+    else:
+        return []
 
 
 

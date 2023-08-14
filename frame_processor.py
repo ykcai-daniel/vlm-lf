@@ -107,14 +107,12 @@ class FrameProcessor:
         results = remove_zero_boxes(results)
         return results
 
-def visualize_results_lang(image,result,classes):
+def visualize_results(image,result,classes,top_left_caption):
     image=cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
     #different color for different bounding box
     color_step=255//len(classes)
     colors=[(255-i*color_step,0,i*color_step) for i in range(1,len(classes)+1)]
-    class_string=", ".join([f"{index+1}->{c}" for index,c in enumerate(classes)])
-    format_string=f"Classes: [{class_string}]"
-    cv2.putText(image, format_string,(5,25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255,255,255), 2)
+    cv2.putText(image, top_left_caption,(5,25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255,255,255), 2)
     for index,label in enumerate(result['labels']):
         point=result['boxes'][index]
         p1_x,p1_y,p2_x,p2_y=int(point[0]),int(point[1]),int(point[2]),int(point[3])
@@ -124,19 +122,7 @@ def visualize_results_lang(image,result,classes):
         cv2.putText(image, f"{label+1} ({score_str})",(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
     return image
 
-def visualize_result_image(image,result,caption=None):
-    #different color for different bounding box
-    color=(255,255,0)
-    if caption is not None:
-        cv2.putText(image, caption,(5,25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255,255,255), 2)
-    for index,score in enumerate(result['scores']):
-        point=result['boxes'][index]
-        p1_x,p1_y,p2_x,p2_y=int(point[0]),int(point[1]),int(point[2]),int(point[3])
-        #print(f"P1： ({p1_x},{p1_y}) P2: ({p2_x},{p2_y})")
-        cv2.rectangle(img=image,pt1=(p1_x,p1_y),pt2=(p2_x,p2_y),color=color,thickness=3)
-        cv2.putText(image, "{:.2f}".format(score),(p1_x+5, p1_y+25), cv2.FONT_HERSHEY_SIMPLEX, 1, (255,255,255), 2)
-    return image
-
+#singleton object
 vlm_processor=FrameProcessor()
 
 if __name__=="__main__":
