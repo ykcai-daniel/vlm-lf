@@ -7,7 +7,7 @@ import os
 import argparse
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 import torch
-
+#nms per class!
 def non_max_suppression_fast(boxes, overlapThresh):
     if len(boxes) == 0:
         return []
@@ -81,6 +81,9 @@ class FrameProcessor:
         results = remove_zero_boxes(results)
         return results
     def image_query(self,image,image_query,device='cpu'):
+        #This processor will resize both frame and qury image to 768*768
+        #We do not want this since it will squash image of a person to a square
+        #However, if we set do_resize=False,do_center_crop=False, we need to change model config as well
         inputs = self.processor(images=image, query_images=image_query, return_tensors="pt").to(device)
         with torch.no_grad():
             outputs = self.model.image_guided_detection(**inputs)
@@ -105,8 +108,10 @@ class FrameProcessor:
         return results
 
 def visualize_results_lang(image,result,classes):
+    image=cv2.cvtColor(image,cv2.COLOR_RGB2BGR)
     #different color for different bounding box
-    colors=[(255-round(255/i),round(255/i)) for i in range(len(classes)+1,1,-1)]
+    color_step=255//len(classes)
+    colors=[(255-i*color_step,0,i*color_step) for i in range(1,len(classes)+1)]
     class_string=", ".join([f"{index+1}->{c}" for index,c in enumerate(classes)])
     format_string=f"Classes: [{class_string}]"
     cv2.putText(image, format_string,(5,25), cv2.FONT_HERSHEY_SIMPLEX, 0.65, (255,255,255), 2)

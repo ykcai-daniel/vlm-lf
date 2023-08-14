@@ -6,7 +6,7 @@ import torchvision
 from PIL import Image
 from utils.utils import file_name,split_suffix
 import bisect
-from utils.fn import max_with_default
+from utils.fn import max_with_default,square_ma
 import argparse
 import matplotlib.pyplot as plt
 #location of each property at self.data of FrameResult
@@ -20,6 +20,7 @@ class FrameResult:
     
     def __init__(self) -> None:
         #data: [score, logit,bbox,label] if query is image then all labels are 0.
+        #bbox: []
         self.data=None
         self.frame_index=None
 
@@ -85,8 +86,6 @@ class VideoResult:
                 results[self.labels[l]].append(f_logits[index])
         return results
 
-    #sort all the bbox based on its logit value
-    def sort_bbox_logits(self):
         raise NotImplementedError
 
     #return top k frames of each label in self.labels; 
@@ -96,7 +95,6 @@ class VideoResult:
         return self.sort_logits_frame(max_scorer,top_k)
     #return top k frames of each label in self.labels
     
-
 
     def get_frame_scores(self,frame_scorer):
         frame_scores={k:[] for k in self.labels}
@@ -136,9 +134,17 @@ class VideoResult:
         return result
         
     #moving average
-    def sort_logits_chunks_ma(self,chunk_len,default=-100):
+    def sort_logits_chunks_sqr_ma(self,chunk_len):
         #the default value should be set to the minimum value of frame scores
-        max_scorer=max_with_default(default)
+        min_value=self.box_logits_min()
+        max_scorer=max_with_default(min_value)
+        sqr_ma=square_ma(min_value)
+        return self.sort_logits_chunks_partitioned(max_scorer,sqr_ma,chunk_len)
+    
+    def sort_logits_chunks_ma(self,chunk_len):
+        #the default value should be set to the minimum value of frame scores
+        min_value=self.box_logits_min()
+        max_scorer=max_with_default(min_value)
         def ma(scores):
             return sum(scores)/len(scores)
         return self.sort_logits_chunks_partitioned(max_scorer,ma,chunk_len)
@@ -254,19 +260,24 @@ class VideoResult:
         plt.figure(figsize=(12,4))
         plt.ylabel("Frame Score")
         plt.xlabel("Frame Index")
+        image_file_name=file_name(label_connected)
+        image_name_without_suffix,suffix=split_suffix(image_file_name)
         plt.title(f"Frame Scores of {label_connected}")
         lim=[min(frame_scores)-1,max(frame_scores)+1]
         plt.ylim(lim[0],lim[1])
         #red mightest
+        fill_between_handels=[]
         for index,interval in enumerate(intervals):
-            plt.fill_between([i for i in range(interval[0],interval[1])],lim[0],lim[1], color=(1-(index+1)/len(intervals),0,(index+1)/len(intervals)), alpha=0.3)
+            h=plt.fill_between([i for i in range(interval[0],interval[1])],lim[0],lim[1], color=(1-(index+1)/len(intervals),(index+1)/len(intervals),0), alpha=0.5)
+            fill_between_handels.append(h)
+        plt.legend(handles=fill_between_handels, labels=[f"{i}" for i,_ in enumerate(fill_between_handels)])
         # Fill between the intervals
         plt.plot(non_empty_frame_index,frame_scores,'-',linewidth=1)
-        fig_path=f"{save_path}/{label_connected}_frame_scores.jpg"
+        fig_path=f"{save_path}/{image_name_without_suffix}_frame_scores.jpg"
         print(f"Figure saved to {fig_path}")
         plt.savefig(fig_path)
 
-    def dump_top_k_chunks(self, video_path, sorted_results, top_k):
+    def dump_top_k_chunks(self, video_path, sorted_results, top_k:int):
         video_name=file_name(video_path)
         final_result_dir=[]
         max_scorer=max_with_default(self.box_logits_min())
@@ -280,8 +291,11 @@ class VideoResult:
             print(f"Top-{top_k} chunks will be saved in: {result_save_path}")
             video = cv2.VideoCapture(video_path)
             non_empty_frame=self.non_skipped_frames()
-            self.plot_frame_scores(non_empty_frame,frame_results[label],result_save_path,connected_name,sorted_results[label])
-            for i, chunk in enumerate(sorted_results[label]):
+            if len(sorted_results[label])<top_k:
+                print(f"Only {len(sorted_results[label])} for label {label}. Topk : {top_k}")
+            top_k_chunks=sorted_results[label][:top_k]
+            self.plot_frame_scores(non_empty_frame,frame_results[label],result_save_path,connected_name,top_k_chunks)
+            for i, chunk in enumerate(top_k_chunks):
                 start, end=chunk
                 #The frames are saved in memory
                 edited_frames = []
@@ -372,7 +386,7 @@ if __name__=='__main__':
     elif args.dump_type=='chunk':
         sorted_result=video_results.sort_logits_chunks_ma(int(args.chunk_size))
         for k in sorted_result:
-            sorted_result[k]=sorted_result[k][:top_k]
+            sorted_result[k]=sorted_result[k]
         print(sorted_result)
         save_dir=video_results.dump_top_k_chunks('data/hong_kong_airport_demo_data.mp4',sorted_result,top_k)
     else:

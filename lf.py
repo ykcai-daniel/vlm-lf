@@ -148,15 +148,17 @@ if __name__=='__main__':
     parser.add_argument('--video_name',type=str)
     parser.add_argument('--query_index',type=int)
     parser.add_argument('--max_frame',type=int,default=None)
+    parser.add_argument('--interval',type=int,default=10,help="the number of frame between every model execution")
     parser.add_argument('--visualize_all', action='store_true', default=False,help='visualize all bounding boxes of the video')
-    parser.add_argument('--top_k',type=str,default=None,help="top k chunks to output, if None, no chunk will be output")
-    parser.add_argument('--chunk_size',type=int,default=60,help="Number of frames in a chunk") # 3 seconds
+    parser.add_argument('--top_k',type=int,default=None,help="top k chunks to output, if None, no chunk will be output")
+    parser.add_argument('--chunk_size',type=int,default=60,help="Number of frames in a chunk") # 2 seconds
     args=parser.parse_args()
     video_name=args.video_name
     query=test_cases[args.query_index]['object']
     query_type=test_cases[args.query_index]['type']
-    results_dirs=run_video(video_name,query,query_type,visualize_all=args.visualize_all,top_k=args.top_k,chunk_size=args.chunk_size)
+    results_dirs=run_video(video_name,query,query_type,interval=args.interval,visualize_all=args.visualize_all,top_k=args.top_k,chunk_size=args.chunk_size)
     print(f"Results saved to {results_dirs}")
+
 
 
     
