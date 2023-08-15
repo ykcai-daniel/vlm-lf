@@ -156,8 +156,8 @@ if __name__=='__main__':
     parser.add_argument('--max_frame',type=int,default=None)
     parser.add_argument('--interval',type=int,default=10,help="the number of frame between every model execution")
     parser.add_argument('--visualize_all', action='store_true', default=False,help='visualize all bounding boxes of the video')
-    parser.add_argument('--top_k',type=int,default=8,help="top k chunks to output, if None, no chunk will be output")
-    parser.add_argument('--chunk_size',type=int,default=60,help="Number of frames in a chunk") # 2 seconds
+    parser.add_argument('--top_k',type=int,default=None,help="top k chunks to output, if None, no chunk will be output")
+    parser.add_argument('--chunk_size',type=int,default=None,help="Number of frames in a chunk") # 2 seconds
     args=parser.parse_args()
     video_name=args.video_name
     query=test_cases[args.query_index]['object']

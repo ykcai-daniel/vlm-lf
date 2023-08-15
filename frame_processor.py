@@ -7,49 +7,8 @@ import os
 import argparse
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
 import torch
+import torchvision
 #nms per class!
-def non_max_suppression_fast(boxes, overlapThresh):
-    if len(boxes) == 0:
-        return []
-    if boxes.dtype.kind == "i":
-        boxes = boxes.astype("float")
-    pick = []
-    x1 = boxes[:,0]
-    y1 = boxes[:,1]
-    x2 = boxes[:,2]
-    y2 = boxes[:,3]
-    #add tiny number to avoid zero
-    area = (x2 - x1 + 1) * (y2 - y1 + 1)+1e-7
-    idxs = np.argsort(y2)
-    while len(idxs) > 0:
-        last = len(idxs) - 1
-        i = idxs[last]
-        pick.append(i)
-        xx1 = np.maximum(x1[i], x1[idxs[:last]])
-        yy1 = np.maximum(y1[i], y1[idxs[:last]])
-        xx2 = np.minimum(x2[i], x2[idxs[:last]])
-        yy2 = np.minimum(y2[i], y2[idxs[:last]])
-        w = np.maximum(0, xx2 - xx1 + 1)
-        h = np.maximum(0, yy2 - yy1 + 1)
-        overlap = (w * h) / area[idxs[:last]]
-        to_zero = np.where(overlap > overlapThresh)[0]
-        x1[idxs[to_zero]] = 0
-        y1[idxs[to_zero]] = 0
-        x2[idxs[to_zero]] = 0
-        y2[idxs[to_zero]] = 0
-        idxs = np.delete(idxs, last)
-    return boxes.astype("int").tolist()
-
-def remove_zero_boxes(result):
-    if 'boxes' not in result:
-        return result
-    new_result={k:[] for k in result}
-    for index,box in enumerate(result['boxes']):
-        box_int=[int(i) for i in box]
-        if box_int != [0, 0, 0, 0]:
-            for k in result:
-                new_result[k].append(result[k][index])
-    return new_result
 
 def inverse_sigmoid(scores):
     return torch.log(scores/(torch.ones_like(scores,dtype=torch.float)-scores))
@@ -71,14 +30,13 @@ class FrameProcessor:
             raw_results = self.processor.post_process_object_detection(outputs, threshold=0.05,target_sizes=target_sizes)
             #raw result length=1 since only one frame
             assert(len(raw_results)==1)
+        keep_indexs=torchvision.ops.batched_nms(raw_results[0]["boxes"],raw_results[0]["scores"],raw_results[0]['labels'],0.3)
         results={
-            'scores':raw_results[0]["scores"].tolist(),
-            'labels':raw_results[0]["labels"].tolist(),
-            'logits':inverse_sigmoid(raw_results[0]["scores"]).tolist(),
-            'boxes':raw_results[0]["boxes"].tolist()
+            'scores':raw_results[0]["scores"][keep_indexs].tolist(),
+            'labels':raw_results[0]["labels"][keep_indexs].tolist(),
+            'logits':inverse_sigmoid(raw_results[0]["scores"][keep_indexs]).tolist(),
+            'boxes':raw_results[0]["boxes"][keep_indexs].tolist()
         }
-        results['boxes']=non_max_suppression_fast(np.array(results['boxes']), 0.3)
-        results = remove_zero_boxes(results)
         return results
     def image_query(self,image,image_query,device='cpu'):
         #This processor will resize both frame and qury image to 768*768
@@ -103,8 +61,6 @@ class FrameProcessor:
             'boxes':raw_results[0]["boxes"].tolist(),
             'logits':inverse_sigmoid(raw_results[0]["scores"]).tolist(),
         }
-        results['boxes']=non_max_suppression_fast(np.array(results['boxes']), 0.3)
-        results = remove_zero_boxes(results)
         return results
 
 def visualize_results(image,result,classes,top_left_caption):
