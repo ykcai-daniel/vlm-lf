@@ -368,9 +368,10 @@ if __name__=='__main__':
     #lang query
     #change to the name of the json output by lf.py
     parser=argparse.ArgumentParser()
-    parser.add_argument('--video_results',type=str)
-    parser.add_argument('--dump_type',type=str,choices=['frame','chunk'],help='frame or chunk')
-    parser.add_argument('--top_k',type=str,default=8)
+    parser.add_argument('--video_results',type=str,required=True)
+    parser.add_argument('--video_name',type=str,required=True)
+    parser.add_argument('--dump_type',type=str,choices=['frame','chunk'],help='frame or chunk',required=True)
+    parser.add_argument('--top_k',type=str,default=10)
     parser.add_argument('--chunk_size',type=str,default=90) # 3 seconds
     args=parser.parse_args()
     video_results=VideoResult()
@@ -380,7 +381,7 @@ if __name__=='__main__':
     top_k=int(args.top_k)
     print(f"Video results loaded Sorting top-{top_k}")
     if args.dump_type=='frame':
-        save_dir=video_results.dump_top_k_frames(top_k,'data/hong_kong_airport_demo_data.mp4')
+        save_dir=video_results.dump_top_k_frames(top_k,args.video_name)
         for dir in save_dir:
             make_grid(dir)
     elif args.dump_type=='chunk':
@@ -388,7 +389,7 @@ if __name__=='__main__':
         for k in sorted_result:
             sorted_result[k]=sorted_result[k]
         print(sorted_result)
-        save_dir=video_results.dump_top_k_chunks('data/hong_kong_airport_demo_data.mp4',sorted_result,top_k)
+        save_dir=video_results.dump_top_k_chunks(args.video_name,sorted_result,top_k)
     else:
         print("Dump result can only be chunk or frame")
     
