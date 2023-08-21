@@ -6,6 +6,14 @@ test_cases=[
     #'object' should still be a list!
     #bags: tote bag, handbad, belt bag
     {
+        'object':['blue boy'],
+        'type': 'lang'
+    },
+    {
+        'object':['test_images/blue_boy.JPG'],
+        'type': 'image'
+    },
+    {
         #general objects with color
         'object':['green backpack','red suitcase'],
         'type':'lang',
@@ -29,7 +37,7 @@ test_cases=[
     {
         #person 1 lang
 
-        'object':['white shirt','blue jeans','white shirt blue jeans man'],
+        'object':['white shirt','blue jeans','white shirt blue jeans man with two black suitcases'],
         'type':'lang'
     },
     {

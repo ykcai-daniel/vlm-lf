@@ -4,6 +4,15 @@ import cv2
 import time
 import argparse
 import json
+
+def draw_bbox(frame, tracks):
+    for track in tracks:
+        if not track.is_confirmed():
+            continue
+        ltrb = track.to_ltrb()
+        cv2.rectangle(frame, (int(ltrb[0]), int(ltrb[1])), (int(ltrb[2]), int(ltrb[3])), (0, 255, 0), 2)
+        cv2.putText(frame, str(track.track_id), (int(ltrb[0]), int(ltrb[1])), 0, 5e-3 * 200, (0, 255, 0), 2)
+
 if __name__=='__main__':
     parser=argparse.ArgumentParser()
     parser.add_argument('--video_name',type=str)
@@ -14,6 +23,14 @@ if __name__=='__main__':
         results=json.load(f)
     video_result.from_data_dict(results)
     video_input=cv2.VideoCapture(args.video_name)
+    width = int(video_input.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(video_input.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    video_output = cv2.VideoWriter(
+                'tracker_results.mp4',
+                cv2.VideoWriter_fourcc(*'mp4v'),
+                15,
+                (width, height)
+            )
     track_frame={}
     for label in video_result.labels:
         tracker = DeepSort(max_age=5)
@@ -30,6 +47,11 @@ if __name__=='__main__':
             tracks = tracker.update_tracks(box_frame, frame=frame) # bbs expected to be a list of detections, each in tuples of ( [left,top,w,h], confidence, detection_class )
             end=time.perf_counter()
             print(f"Find {len(tracks)} tracks in {end-start}s")
+            draw_bbox(frame,tracks)
+            # cv2.imshow('Video',frame)
+            video_output.write(frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
             for track in tracks:
                 if not track.is_confirmed():
                     continue
@@ -41,6 +63,9 @@ if __name__=='__main__':
                     track_frame[track_id].append(frame_result.frame_index)
                 ltrb = track.to_ltrb()
                 print(ltrb)
+    video_output.release()
+    video_input.release()
+    cv2.destroyAllWindows()
     print(f'found {len(track_frame)} results')
     with open('track_result.json','w') as f:
         json.dump(track_frame,f)
