@@ -1,4 +1,14 @@
 # Open Vocabulary Video Analytics
+## Installation
+Firstly, clone the repo
+```
+git clone https://github.com/ykcai-daniel/vlm-lf.git
+```
+Then, pull the GroudingDino dependency repo:
+```
+git submodule update --init
+```
+Since this model requires several C++ pytorch operators, you must compile them before running the code. Follow the readme guide of [GroundingDino](https://github.com/IDEA-Research/GroundingDINO/tree/60d796825e1266e56f7e4e9e00e88de662b67bd3). 
 ## Data Preparation
 To prepare the Hong Kong airport video, first download this [video](https://www.youtube.com/watch?v=ZgxirOW9_go) with `data_provider.py`: `python data_provider.py`; Then, devide it into three minute chunks with ffmpeg: 
 ```
@@ -41,4 +51,5 @@ If you want to output chunks:
 ```
 python outputs.py --video_results results/hong_kong_airport_demo_data.mp4_202308081040_lang.json --dump_type chunk --top_k 10 --chunk_size 90
 ```
+
 
