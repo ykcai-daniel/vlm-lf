@@ -29,7 +29,7 @@ test_cases=[
     {
         #person 1 lang
 
-        'object':['white shirt','blue jeans','white shirt blue jeans man'],
+        'object':['man wearing white shirt and blue jeans with two black suitcases'],
         'type':'lang'
     },
     {
